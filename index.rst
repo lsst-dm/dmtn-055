@@ -104,8 +104,6 @@ The typical usage pattern for the SuperTask Library is as follows.
 SuperTask Class Interface
 =========================
 
-The declaration for the :py:class:`SuperTask` abstract base class is sufficiently simple that we can simply reproduce it here:
-
 .. py:class:: SuperTask(Task)
 
     .. py:method:: __init__(self, butler=None, **kwargs)
@@ -125,12 +123,28 @@ The declaration for the :py:class:`SuperTask` abstract base class is sufficientl
 
         This method actually runs the :py:class:`SuperTask` on the given :py:class:`Quantum`, using a ``Butler`` for input and output.  For most concrete :py:class:`SuperTasks <SuperTask>`, this should simply use ``Butler.get`` to retrieve inputs, call :py:meth:`run`, and then use ``Butler.put`` to write outputs.
 
+    .. py::method:: getDatasetClasses(self)
+
+        Called during :ref:`pre-flight <preflight>` (before :py:meth:`defineQuanta`), this method returns the sets of input and output :py:class:`Datasets <Dataset>` classes used by this :py:class:`SuperTask`.  As long as :py:class:`DatasetField <supertask_interface_configuration>` is used to control the :py:class:`Dataset` classes utilized by the :py:class:`SuperTask's <SuperTask>`, the default implementation provided by the :py:class:`SuperTask` base class itself should be sufficient.
+
+    .. py::method:: getDatasetSchemas(self)
+
+        This method returns a dict containing the schemas that correspond to any table-like datasets output by the :py:class:`SuperTask`.  Dictionary keys are :py:class:`Dataset` types.  This may be extended in the future to contain other schema-like information for non-table datasets.
+
 .. note::
     This differs from the code in ``pipe_supertask`` a bit (other than just being a summary with no docstrings or implementation):
      - I've rewritten ``__init__``'s signature to use ``**kwds`` to allow it to forward all arguments to the ``Task`` constructor.
      - I've removed the ``butler`` argument from ``defineQuanta``; I don't think it's necessary.
      - I've removed ``write_config`` and ``_get(_resource)_config_name``; I think writing is the responsibility of the ``PreflightFramework``, and I think the config name should always be set from ``_DefaultName`` (which is part of ``Task``, not just :py:class:`SuperTask`).
      - Removed ``write_schema`` in favor of ``getDatasetSchemas``.  Again, I think writing should be the responsibility of the ``PreflightFramework``. so we just need a way for it to get the schema(s) from the :py:class:`SuperTask`.
+
+.. _supertask_interface_configuration
+
+Configuration and DatasetField
+------------------------------
+
+The actual :py:class:`Dataset` types used by a :py:class:`SuperTask` are configurable, allowing new types to be defined at configuration time.  The :py:class:`Units <Unit>` utilized by these types are fixed by the concrete :py:class:`SuperTask's <SuperTask>` definition, however, and only the names may be configured.  This will be handled by a new :py:class:`DatasetField` class in :py:module:`pex_config` that is customized for holding :py:class:`Dataset` definitions.
+
 
 .. _quantum_interface
 
