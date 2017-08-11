@@ -101,8 +101,70 @@ The typical usage pattern for the SuperTask Library is as follows.
 
 .. _supertask_interface:
 
-SuperTask class interface
+SuperTask Class Interface
 =========================
+
+The declaration for the ``SuperTask`` abstract base class is sufficiently simple that we can simply reproduce it here:
+
+.. code-block:: py
+
+    class SuperTask(Task):
+
+        def __init__(self, butler=None, **kwargs):
+            ...
+
+        def run(self, *args, **kwargs):
+            raise NotImplementedError()
+
+        def defineQuanta(self, repoGraph):
+            raise NotImplementedError()
+
+        def runQuantum(self, quantum, butler):
+            raise NotImplementedError()
+
+        def getDatasetClasses(self):
+            ...
+
+        def getDatasetSchemas(self):
+            ...
+
+.. note::
+    This differs from the code in ``pipe_supertask`` a bit (other than just being a summary with no docstrings or implementation):
+     - I've rewritten ``__init__``'s signature to use ``**kwds`` to allow it to forward all arguments to the ``Task`` constructor.
+     - I've removed the ``butler`` argument from ``defineQuanta``; I don't think it's necessary.
+     - I've removed ``write_config`` and ``_get(_resource)_config_name``; I think writing is the responsibility of the ``PreflightFramework``, and I think the config name should always be set from ``_DefaultName`` (which is part of ``Task``, not just ``SuperTask``).
+     - Removed ``write_schema`` in favor of ``getDatasetSchemas``.  Again, I think writing should be the responsibility of the ``PreflightFramework``. so we just need a way for it to get the schema(s) from the ``SuperTask``.
+
+Construction
+    All concrete ``SuperTasks`` must have the ``__init__`` signature shown here, in which ``**kwargs`` contains only arguments to be forwarded to ``Task.__init__`` (additional keyword-only arguments are also allowed, as long as they have default values).  The abstract base class does not use the ``butler`` argument, allowing it to be ``None``, and while concrete ``SuperTasks`` may or may not use it, they must accept it even if it is unused.  This allows the schemas associated with input dataset types and the configuration of preceeding ``SuperTasks`` to be loaded and used to complete construction of the ``SuperTask``; a ``SuperTask`` should not assume any other datasets are available through the given ``Butler``.  ``SuperTasks`` that do use the ``butler`` argument should also provide an alternate way to provide the schemas and configuration (i.e. additional defaulted keyword arguments) to allow them to be constructed without a ``Butler`` when used as a regular ``Task``.  This also implies that when a ``Pipeline`` constructs a sequence of ``SuperTasks``, it must ensure the schemas and configuration are recorded at each step, not just at the end.
+
+``run(*args, **kwargs)``
+    This is the standard entry point for all ``Tasks``, with the signature completely different for each concrete ``Task``.  This should perform the bulk of the ``SuperTask's `` algorithmic work, operating on in-memory objects for both arguments and return values, and should not utilize a ``Butler`` or perform any I/O.  In rare cases, a ``SuperTask`` for which I/O is an integral component of the algorithm may lack a ``run`` method, or may have multiple methods to serve the same purpose.  As with other ``Tasks``, the return value should be a ``pipe.base.Struct`` combining named result objects.
+
+``defineQuanta(repoGraph)``
+    Called during :ref:`pre-flight <preflight>`, in this method a concrete ``SuperTask`` subdivides work into independently-executable units (quanta) and relates the input datasets of these to their output datasets.
+    The only argument is a :ref:```RepoGraph`` <data_id_mapping>`` instance, a graph object describing the current state of the relevant subset of the input data repository.  On return, the ``RepoGraph`` should be modified to additionally contain datasets that will be produced by the ``SuperTask``, reflecting the fact that they will be present in the data repository by the time subsequent ``SuperTask``s in the same ``Pipeline`` are executed.  The return value should be a list of :ref:```Quantum`` <quantum_interface>` instances.
+
+``runQuantum(quantum, butler)``
+    This method actually runs the ``SuperTask`` on the given :ref:```Quantum`` <quantum_interface>`, using a ``Butler`` for input and output.  For most concrete ``SuperTasks``, this should simply use ``Butler.get`` to retrieve inputs, call ``run``, and then use ``Butler.put`` to write outputs.
+
+.. _quantum_interface
+
+Quantum Class Interface
+=======================
+
+``Quantum`` is a simple struct-like class that simply aggregates the input and output datasets for a unit of work that can be performed independently by a ``SuperTask``:
+
+.. code-block:: py
+
+    class Quantum(object):
+
+        def __init__(self, inputs, outputs):
+            self.inputs = inputs
+            self.outputs = outputs
+
+The ``inputs`` and ``outputs`` attributes are dictionaries with ``Dataset`` class types as keys and a ``set`` of ``Dataset`` instances (of that type) as values.
+
 
 .. _pipeline_interface:
 
