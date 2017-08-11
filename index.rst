@@ -143,7 +143,7 @@ Construction
 
 ``defineQuanta(repoGraph)``
     Called during :ref:`pre-flight <preflight>`, in this method a concrete ``SuperTask`` subdivides work into independently-executable units (quanta) and relates the input datasets of these to their output datasets.
-    The only argument is a :ref:```RepoGraph`` <data_id_mapping>`` instance, a graph object describing the current state of the relevant subset of the input data repository.  On return, the ``RepoGraph`` should be modified to additionally contain datasets that will be produced by the ``SuperTask``, reflecting the fact that they will be present in the data repository by the time subsequent ``SuperTask``s in the same ``Pipeline`` are executed.  The return value should be a list of :ref:```Quantum`` <quantum_interface>` instances.
+    The only argument is a :ref:`RepoGraph <data_id_mapping>`` instance, a graph object describing the current state of the relevant subset of the input data repository.  On return, the ``RepoGraph`` should be modified to additionally contain datasets that will be produced by the ``SuperTask``, reflecting the fact that they will be present in the data repository by the time subsequent ``SuperTask``s in the same ``Pipeline`` are executed.  The return value should be a list of :py:class:`Quantum` instances.
 
 ``runQuantum(quantum, butler)``
     This method actually runs the ``SuperTask`` on the given :ref:```Quantum`` <quantum_interface>`, using a ``Butler`` for input and output.  For most concrete ``SuperTasks``, this should simply use ``Butler.get`` to retrieve inputs, call ``run``, and then use ``Butler.put`` to write outputs.
@@ -154,6 +154,8 @@ Quantum Class Interface
 =======================
 
 ``Quantum`` is a simple struct-like class that simply aggregates the input and output datasets for a unit of work that can be performed independently by a ``SuperTask``:
+
+.. py:class:: Qunatum
 
 .. code-block:: py
 
