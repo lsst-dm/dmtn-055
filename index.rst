@@ -77,26 +77,26 @@ For the remainder of this document, we will refer to an independent unit of work
 
 The typical usage pattern for the SuperTask Library is as follows.
 
-#.  A developer defines a ``Pipeline`` from a sequence of :py:class:`SuperTasks <SuperTask>`, including their configuration, either programmatically or by editing a TBD text-based, human-readable file format.  Other developers may then modify the ``Pipeline`` to modify configuration or insert or delete :py:class:`SuperTasks <SuperTask>`, again via either approach.
+#.  A developer defines a :py:class:`Pipeline` from a sequence of :py:class:`SuperTasks <SuperTask>`, including their configuration, either programmatically or by editing a TBD text-based, human-readable file format.  Other developers may then modify the :py:class:`Pipeline` to modify configuration or insert or delete :py:class:`SuperTasks <SuperTask>`, again via either approach.
 
-#.  An operator passes the ``Pipeline``, an input data repository to a ``PreflightFramework``, and a Data ID Expression (see :ref:`data_id_mapping`).  Different ``PreflightFrameworks`` will be implemented for different contexts.  Some ``PreflightFramework``s may provide an interface for making a final round of modifications to the ``Pipeline`` at this stage, but these modifications are not qualitatively different from those in the previous step.
+#.  An operator passes the :py:class:`Pipeline`, an input data repository to a ``PreflightFramework``, and a Data ID Expression (see :ref:`data_id_mapping`).  Different ``PreflightFrameworks`` will be implemented for different contexts.  Some ``PreflightFrameworks`` may provide an interface for making a final round of modifications to the :py:class:`Pipeline` at this stage, but these modifications are not qualitatively different from those in the previous step.
 
-#.  The ``PreflightFramework`` passes the ``Pipeline``, the input data repository, and the Data ID Expression to a ``GraphBuilder`` (see :ref:`preflight`), which
+#.  The ``PreflightFramework`` passes the :py:class:`Pipeline`, the input data repository, and the Data ID Expression to a ``GraphBuilder`` (see :ref:`preflight`), which
 
-    - inspects the ``Pipeline`` to construct a list of all dataset types consumed and/or produced by the ``Pipeline``;
+    - inspects the :py:class:`Pipeline` to construct a list of all dataset types consumed and/or produced by the :py:class:`Pipeline`;
     - queries the data repository to obtain a ``RepoGraph`` that contains all datasets of these types that match the given Data ID Expression (see :ref:`data_id_mapping`);
-    - calls the ``defineQuanta`` method of each :py:class:`SuperTask` in the ``Pipeline`` in sequence, accumulating a list of all quanta to be executed;
+    - calls the ``defineQuanta`` method of each :py:class:`SuperTask` in the :py:class:`Pipeline` in sequence, accumulating a list of all quanta to be executed;
     - constructs the Science DAG (see :ref:`preflight`), a bipartate directed acyclic graph with quantum vertices linked by the dataset vertices they produce and consume.
 
-#.  The Science DAG is passed to an ``ExecutionFramework``, along with additional configuration for how the processing is to be performed (changes in this configuration must not change the outputs of the ``Pipeline`` except to allow intermediate datasets to be elided).  The ``ExecutionFramework`` may be the same class as the ``PreflightFramework`` (as in ``CmdLineTask``, which performs both roles), which makes this step a no-op.  It may also be a completely different class that may be run in an entirely different compute environment (via a serialized Science DAG).
+#.  The Science DAG is passed to an ``ExecutionFramework``, along with additional configuration for how the processing is to be performed (changes in this configuration must not change the outputs of the :py:class:`Pipeline` except to allow intermediate datasets to be elided).  The ``ExecutionFramework`` may be the same class as the ``PreflightFramework`` (as in ``CmdLineTask``, which performs both roles), which makes this step a no-op.  It may also be a completely different class that may be run in an entirely different compute environment (via a serialized Science DAG).
 
-#.  The ``ExecutionFramework`` creates one or more output data repositories and records in them any repository-wide provenance (such as the ``Pipeline`` configuration or software versions).
+#.  The ``ExecutionFramework`` creates one or more output data repositories and records in them any repository-wide provenance (such as the :py:class:`Pipeline` configuration or software versions).
 
 #.  The ``ExecutionFramework`` walks the Science DAG according to the partial ordering it defines, and calls ``runQuantum`` on the appropriate concrete :py:class:`SuperTask` for each quantum vertex.  Depending on the activator, the :py:class:`SuperTasks <SuperTask>` may be run directly in the same compute environment, or submitted to a workflow system for execution elsewhere (probably by translating the generic Science DAG to a format specific to a particular workflow system).  In some environments a temporary local data repository containing only the datasets consumed by a particular set of quanta may be created in scratch space to support execution in a context in which the original data repositories are not accessible, with output datasets similarly staged back to the true output data repositories.
 
 .. note::
 
-    The above procedure does not provide a mechanism for adding camera-specific overrides to the configuration.  I think this has to be part of the ``Pipeline`` interface that's done in the first step, not something done later by ``PreflightFrameworks``.  That's especially true if we want to permit ``Pipelines`` that aggregate data from multiple cameras; in that case I think we'd need the `Pipeline` itself to hold the overrides for different cameras in addition to the defaults to avoid spurious provenance issues from having different configurations of the same ``Pipeline`` in a repo.  Given that different cameras might even change the :py:class:`SuperTasks <SuperTask>` we want in a ``Pipeline``, we may need to make it possible to parameterize all of a ``Pipeline's`` definition on different Units of data (not just cameras, but filters).  I'm sure that's doable, but it's a lot more complexity than we were imagining when we punted on the details of the ``Pipeline`` API.
+    The above procedure does not provide a mechanism for adding camera-specific overrides to the configuration.  I think this has to be part of the :py:class:`Pipeline` interface that's done in the first step, not something done later by ``PreflightFrameworks``.  That's especially true if we want to permit ``Pipelines`` that aggregate data from multiple cameras; in that case I think we'd need the `Pipeline` itself to hold the overrides for different cameras in addition to the defaults to avoid spurious provenance issues from having different configurations of the same :py:class:`Pipeline` in a repo.  Given that different cameras might even change the :py:class:`SuperTasks <SuperTask>` we want in a :py:class:`Pipeline`, we may need to make it possible to parameterize all of a :py:class:`Pipeline's <Pipeline>` definition on different Units of data (not just cameras, but filters).  I'm sure that's doable, but it is not currently supported by the :py:class:`Pipeline` API in this document.
 
 
 .. _supertask_interface:
@@ -108,7 +108,7 @@ SuperTask Class Interface
 
     .. py:method:: __init__(self, butler=None, **kwargs)
 
-        All concrete :py:class:`SuperTasks <SuperTask>` must have the ``__init__`` signature shown here, in which ``**kwargs`` contains only arguments to be forwarded to ``Task.__init__`` (additional keyword-only arguments are also allowed, as long as they have default values).  The abstract base class does not use the ``butler`` argument, allowing it to be ``None``, and while concrete :py:class:`SuperTasks <SuperTask>` may or may not use it, they must accept it even if it is unused.  This allows the schemas associated with input dataset types and the configuration of preceeding :py:class:`SuperTasks <SuperTask>` to be loaded and used to complete construction of the :py:class:`SuperTask`; a :py:class:`SuperTask` should not assume any other datasets are available through the given ``Butler``.  :py:class:`SuperTasks <SuperTask>` that do use the ``butler`` argument should also provide an alternate way to provide the schemas and configuration (i.e. additional defaulted keyword arguments) to allow them to be constructed without a ``Butler`` when used as a regular ``Task``.  This also implies that when a ``Pipeline`` constructs a sequence of :py:class:`SuperTasks <SuperTask>`, it must ensure the schemas and configuration are recorded at each step, not just at the end.
+        All concrete :py:class:`SuperTasks <SuperTask>` must have the ``__init__`` signature shown here, in which ``**kwargs`` contains only arguments to be forwarded to ``Task.__init__`` (additional keyword-only arguments are also allowed, as long as they have default values).  The abstract base class does not use the ``butler`` argument, allowing it to be ``None``, and while concrete :py:class:`SuperTasks <SuperTask>` may or may not use it, they must accept it even if it is unused.  This allows the schemas associated with input dataset types and the configuration of preceeding :py:class:`SuperTasks <SuperTask>` to be loaded and used to complete construction of the :py:class:`SuperTask`; a :py:class:`SuperTask` should not assume any other datasets are available through the given ``Butler``.  :py:class:`SuperTasks <SuperTask>` that do use the ``butler`` argument should also provide an alternate way to provide the schemas and configuration (i.e. additional defaulted keyword arguments) to allow them to be constructed without a ``Butler`` when used as a regular ``Task``.  This also implies that when a :py:class:`Pipeline` constructs a sequence of :py:class:`SuperTasks <SuperTask>`, it must ensure the schemas and configuration are recorded at each step, not just at the end.
 
     .. py:method:: run(self, *args, **kwargs)
 
@@ -117,7 +117,7 @@ SuperTask Class Interface
     .. py:method:: defineQuanta(self, repoGraph)
 
         Called during :ref:`pre-flight <preflight>`, in this method a concrete :py:class:`SuperTask` subdivides work into independently-executable units (quanta) and relates the input datasets of these to their output datasets.
-        The only argument is a :ref:`RepoGraph <data_id_mapping>`` instance, a graph object describing the current state of the relevant subset of the input data repository.  On return, the ``RepoGraph`` should be modified to additionally contain datasets that will be produced by the :py:class:`SuperTask`, reflecting the fact that they will be present in the data repository by the time subsequent :py:class:`SuperTask`s in the same ``Pipeline`` are executed.  The return value should be a list of :py:class:`Quantum` instances.
+        The only argument is a :ref:`RepoGraph <data_id_mapping>` instance, a graph object describing the current state of the relevant subset of the input data repository.  On return, the ``RepoGraph`` should be modified to additionally contain datasets that will be produced by the :py:class:`SuperTask`, reflecting the fact that they will be present in the data repository by the time subsequent :py:class:`SuperTask's <SuperTask>` in the same :py:class:`Pipeline` are executed.  The return value should be a list of :py:class:`Quantum` instances.
 
     .. py:method:: runQuantum(self, quantum, butler)
 
@@ -138,18 +138,18 @@ SuperTask Class Interface
      - I've removed ``write_config`` and ``_get(_resource)_config_name``; I think writing is the responsibility of the ``PreflightFramework``, and I think the config name should always be set from ``_DefaultName`` (which is part of ``Task``, not just :py:class:`SuperTask`).
      - Removed ``write_schema`` in favor of ``getDatasetSchemas``.  Again, I think writing should be the responsibility of the ``PreflightFramework``. so we just need a way for it to get the schema(s) from the :py:class:`SuperTask`.
 
-.. _supertask_interface_configuration
+.. _supertask_interface_configuration:
 
 Configuration and DatasetField
 ------------------------------
 
-The actual :py:class:`Dataset` types used by a :py:class:`SuperTask` are configurable, allowing new types to be defined at configuration time.  The :py:class:`Units <Unit>` utilized by these types are fixed by the concrete :py:class:`SuperTask's <SuperTask>` definition, however, and only the names may be configured.  This will be handled by a new :py:class:`DatasetField` class in :py:module:`pex_config` that is customized for holding :py:class:`Dataset` definitions.
+The actual :py:class:`Dataset` types used by a :py:class:`SuperTask` are configurable, allowing new types to be defined at configuration time.  The :py:class:`Units <Unit>` utilized by these types are fixed by the concrete :py:class:`SuperTask's <SuperTask>` definition, however, and only the names may be configured.  This will be handled by a new :py:class:`DatasetField` class in ``pex_config`` that is customized for holding :py:class:`Dataset` definitions.
 
 
-.. _quantum_interface
+.. _quantum_interface:
 
 Quantum Class Interface
-=======================
+-----------------------
 
 :py:class:`Quantum` is a simple struct-like class that simply aggregates the input and output datasets for a unit of work that can be performed independently by a :py:class:`SuperTask`:
 
@@ -166,8 +166,30 @@ Quantum Class Interface
 
 .. _pipeline_interface:
 
-Pipeline class interface
+Pipeline Class Interface
 ========================
+
+.. py:class:: Pipeline
+
+    Pipeline behaves like (at should probably be implemented as) a thin layer over Python's built-in `OrderedDict`, in which the dictionary values hold a concrete :py:class:`SuperTask` subclass and its configuration and the keys are simply string labels.  The order of the items must be consistent with the partial ordering implied by the sequence of :py:class:`Dataset` classes used by the concrete :py:class:`SuperTasks <SuperTask>`, though this is condition is only checked on request -- trying to maintain it as a class invariant would make it much more difficult to modify the Pipeline in-place.
+
+    .. py:method:: checkOrder(self)
+
+        Return False if any :py:class:`SuperTask` in the py:class:`Pipeline` produces an output :py:class:`Dataset` that has already been utilized as an input by a :py:class:`SuperTask` that appears earlier in the :py:class:`Pipeline's <Pipeline>` iteration order.
+
+    .. py:method:: sort(self):
+
+        Modify the iteration order of the :py:class:`Pipeline` to guarantee
+        that subsequent calls to :py:meth:`checkOrder` will return True.
+
+    .. py:method:: applyConfigOverrides(self, overrides)
+
+        Apply a set of configuration overrides to the :py:class:`SuperTask` labeled with the given key.  The overrides are given as a dictionary with keys matching labels for :py:class:`SuperTasks <SuperTask>` in the :py:class:`Pipeline`, and values holding configuration overrides for that :py:class:`SuperTask`.
+
+        .. note::
+            This assumes a Python class representing a set of config overrides, which ``pex_config`` currently does not provide.
+
+
 
 .. _data_id_mapping:
 
