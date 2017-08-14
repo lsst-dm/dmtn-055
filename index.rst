@@ -190,11 +190,88 @@ Pipeline Class Interface
             This assumes a Python class representing a set of config overrides, which ``pex_config`` currently does not provide.
 
 
-
 .. _data_id_mapping:
 
-DataID-mapping model
-====================
+Relating and Specifying Data IDs
+================================
+
+The Problem
+-----------
+
+The procedure for creating an execution plan for a full :py:class:`Pipeline` reveals some clear limitations in the current `Butler/CmdLineTask` approach to specifying and utilizing dictionary-based data IDs.
+
+As an example, let us consider a :py:class:`SuperTask` responsible for warping a visit-level image to the coordinate system defined by a sky patch prior coaddition.  The quantum in this case is the set of visit-sensor images that overlap the sky patch, and it is quite conceivable that the user would want to specify or constrain (via wildcards) either the outputs (the sky patches for which coadds should be produced) or the inputs (the set of visits to combine), or both.
+
+Given a general wildcard expression that could involve inputs, outputs, or both, and a ``Butler`` API for generating the set of related output data IDs given an input data ID (or vice versa), however, we have no good options for how to expand the wildcards.  If we start by expanding the input wildcard, but the user has only constrained the outputs, we will iterate over all visits in the repository despite the fact that we only need a small fraction of them, and if we start with outputs, the reverse is equally likely.  Whether the wildcard expansion happens within the ``Butler``, in a ``PreflightActivator``, or :py:meth:`SuperTask.defineQuanta`, a way to relate data IDs in a pairwise sense is simply not sufficient.  This is even more evident when we consider the fact that this :py:class:`SuperTask` may be only one i a much larger :py:class:`Pipeline` that involes many other kinds of data IDs that the user may want to constrain.
+
+
+A Solution: Repository Graphs and Databases
+-------------------------------------------
+
+The above problem is not a novel one: it is exactly the problem a relational database's query optimizer attempts to solve when parsing an expression that involves one or more inner joins.  A natural solution in our context is thus to:
+
+ - create a SQL database with a schema that describes the different kinds of data IDs in a repository and their relationships;
+
+ - accept data ID expressions in fhe form of partial SQL where clauses;
+
+ - construct and execute a SELECT query that inner-joins the relevant data IDs and applies the user's data ID expressions.
+
+This represents a complete redesign of the system of managing metadata in a Data Repository.  It replaces the simple, raw-data-centric registry database and the APIs for interacting it with with a multi-table database that manages all datasets in a repository.  To represent the results of the queries against this database in Python, it also involves a replacing the dictionary-based data ID concept with a more object-oriented system that can hold relationship information.  These interfaces are more naturally a part of the Butler Library than the SuperTask Library, and we expect the design sketch described in this section evolve in the course of future Butler Library design work.  However, we do not expect this evolution to require significant changes to the rest of the SuperTask Library design.
+
+In the new system, the combination of a dictionary-style data ID and a dataset type name becomes an instance of the :py:class:`Dataset` class.  A key-value pair in that dictionary becomes an instance of the :py:class:`Unit` class (for "unit of data"); a :py:class:`Dataset` is conceptually a tuple of :py:class:`Units <Unit>`.  A set of :py:class:`Units <Unit>` and py:class:`Datasets <Dataset>` naturally forms a graph-like data structure called a :py:class:`RepoGraph`, which represents (a subset of) a Data Repository.
+
+.. py:class:: Dataset
+
+    A concrete subclass of the abstract base class :py:class:`Dataset` represents a Butler dataset type: a combination of a name, a storage format, path template, and a set of concrete :py:class:`Unit` subclass type objects that define the units of data that label an instance of the dataset.  If, for example, ``Coadd`` is a :py:class:`Dataset` subclass, the corresponding unit classes might be those for :py:class:`Tract`, :py:class:`Patch`, and :py:class:`Filter`.
+
+    An instance of a :py:class:`Dataset` subclass is thus a handle to a particular Butler dataset; it is the only required argument to ``Butler.get`` in the new system, and one of only two required arguments to :py:class:`Butler.put` (the other being the actual object to store).
+
+    :py:class:`Dataset` subclasses are typically created dynamically (usually via a :py:class:DatasetField` that is part of a :py:class:`SuperTask's <SuperTask>` config class).
+
+    .. py:staticmethod:: subclass(name, UnitClasses)
+
+        Define a new :py:class:`Dataset` subclass dyamically with the given name, with instances of the new class required to hold instances of exactly the given :py:class:`Unit` subclasses (via a named attribute for each :py:class:`Unit` subclass).
+
+.. py:class:: Unit
+
+    :py:class:`Unit` is the base of a single-level hierarchy of largely predefined classes that define a static data model.  Each concrete :py:class:`Unit` subclass represents a type of unit of data, such as visits, sensors, or patches of sky, and instances of those classes represent *actual* visits, sensors, or patches of sky.
+
+    A particular :py:class:`Unit's <Unit>` existence is not tied to the presence of any actual data in a repository; it simply defines a dimension in which one or more :py:class:`Datasets <Dataset>` *may* exist.  In addition to fields that describe them (such as a visit number, sensor label, or patch coordinates), concrete :py:class:`Units <Unit>` also have attributes that link them to related :py:class:`Units <Unit>` (such as the set of visit-sensor combinations that overlap a sky patch, and vice versa)
+
+    .. py::attribute:: datasets
+
+        A dictionary containing all :py:class:`Dataset` instances that refer to this :py:class:`Unit` instance.  Keys are :py:class:`Dataset` subclasses, and values are sets of instances of that subclass.
+
+    .. py::attribute:: related
+
+        A dictionary containing all :py:class:`Unit` instances that are directly related to this instance.  Keys are :py:class:`Unit` subclasses, and values are sets fo instances of that subclass.
+
+.. py:class:: RepoGraph
+
+    The attributes that connect :py:class:`Units <Unit>` to other :py:class:`Units <Unit>`, :py:class:`Datasets <Dataset>` to :py:class:`Units <Unit>`, and :py:class:`Units <Unit>` to :py:class:`Datasets <Dataset>` naturally form a graph data structure, which we call a :py:class:`RepoGraph`.
+
+    Because the graph structure is mostly defined by its constituent classes :py:class:`RepoGraph` simply provides flat access to these.
+
+    .. py:attribute:: units
+
+        A dictionary with :py:class:`Unit` subclasses as keys and sets of :py:class:`Unit` instances of that type as values.  Should be considered read-only.
+
+    .. py:attribute:: datasets
+
+        A dictionary with :py:class:`Dataset` subclasses as keys and sets of :py:class:`Dataset` instances of that type as values.  Should be considered read-only.
+
+    .. py::method:: addDataset(self, DatasetClass, **units)
+
+        Create and add a :py:class:`Dataset` instance to the graph, ensuring it is proprely added to the back-reference dictionaries of the :py:class:`Units <Unit>` that define it.  The :py:class:`Dataset` instance is not actually added to the data repository the graph represents; adding them to the graph allows it represent the expected future state of the repository after the processing that produces the dataset has completed.
+
+
+Connecting Python to SQL
+------------------------
+
+The naive approach to mapping these Python classes to a SQL database involves a new table for each :py:class:`Unit` and :py:class:`Dataset` subclass.  It also requires additional join tables for any :py:class:`Units <Unit>` with many-to-many relationships, and probably additional tables to hold camera-specific information for concrete :py:class:`Unit`.  Overall, this approach closely mirrors that of the `Django Project <https://www.djangoproject.com/>`_, in which the custom descriptors that define the attributes of the classes representing database tables can be related directly to the fields of those tables.
+
+The naive approach may work for an implementation based on per-data-repository SQLite databases.  Such an implementation will be important for supporting development work and science users on external systems, but it will not be adequate for most production use cases, which we expect to use centralized database servers to support all repositories in the Data Backbone.  This will require a less-direct mapping between Python classes and SQL tables, especially to avoid the need to permit users to add new tables for new :py:class:`Datasets <Dataset>` when a :py:class:`SuperTask` is run.
+
 
 .. _preflight:
 
