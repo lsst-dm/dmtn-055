@@ -60,6 +60,23 @@ Overview
 Task/Config Context
 ===================
 
+The design for the SuperTask Library sits on top of the existing LSST concepts of :py:class:`Task` and :py:class:`Config` classes.  All :py:class:`SuperTasks <SuperTask>` are :py:class:`Tasks <Task>`, and utilize the same :py:class:`Config` system for algorithmic configuration parameters.
+
+A concrete :py:class:`Task` is simply a configurable, composable, callable object.  While all :py:class:`Tasks <Task>` inherit from a common abstract base class and define a :py:meth:`run` method, each :py:class:`Task` defines its own signature for :py:meth:`run`, so :py:class:`Tasks <Task>` do not really share a common interface.  The :py:class:`lsst.pipe.base.Task` abstract base class itself exists largely to provide utility code to its subclasses, such as setting up logging, providing objects to hold processing metadata, and setting up nested :py:class:`Tasks <Task>` to be delegated to, called *subtasks*.
+
+This composition of :py:class:`Tasks <Task>` is closely tied to our approach for configuring them, and it is this functionality that makes that :py:class:`Task` concept so useful.  Configuration options for a :py:class:`Task` are defined by a corresponding class that inherits from :py:class:`lsst.pex.config.Config`.  :py:class:`Config` classes contains :py:class:`lsst.pex.config.Field` instances, which act like introspectable properties that define the types, allowed values, and documentation for a configuration option.  A set of configuration values for a :py:class:`Task` is thus just an instance of its :py:class:`Config` class, and overrides for those values can be expressed as Python code that assigns values to to the :py:class:`Field` attributes.  When a :py:class:`Task` delegates to another as a subtask, its :py:class:`Config` field usually contains a special :py:class:`ConfigurableField` that holds an instance of the subtask's :py:class:`Config` class but allows it to be replaced by a :py:class:`Config` instance for a different :py:class:`Task`, allowing the subtask to be replaced by another with the same :py:meth:`run` signature.
+
+The :py:class:`SuperTask` abstract base class inherits from :py:class:`Task`, and its concrete subclasses are expected to defined a :py:class:`Config` class to define their configuration parameters and delegate additional work to subtasks.  Using a :py:class:`SuperTasks <SuperTask>` *as* a subtask is not meaningful, however; in that context the :py:class:`SuperTask` just behaves like a regular :py:class:`Task` and the additional interfaces and functionality added by :py:class:`SuperTask` go unused (as a result, we expect this to be rare).
+
+A few additional properties of :py:class:`Tasks <Task>` are particularly relevant for :py:class:`SuperTask` design:
+
+- The configuration of a :py:class:`Task` is frozen after the :py:class:`Task` is constructed.
+
+- The schema of any catalogs produced by a :py:class:`Task` must be fully defined after :py:class:`Task` construction, and must not depend on the actual contents of any data products.
+
+- Calls to :py:meth:`run` or any other methods must not change any internal state.
+
+
 .. _functional_design:
 
 Functional Design and Usage Pattern
@@ -270,7 +287,7 @@ Connecting Python to SQL
 
 The naive approach to mapping these Python classes to a SQL database involves a new table for each :py:class:`Unit` and :py:class:`Dataset` subclass.  It also requires additional join tables for any :py:class:`Units <Unit>` with many-to-many relationships, and probably additional tables to hold camera-specific information for concrete :py:class:`Unit`.  Overall, this approach closely mirrors that of the `Django Project <https://www.djangoproject.com/>`_, in which the custom descriptors that define the attributes of the classes representing database tables can be related directly to the fields of those tables.
 
-The naive approach may work for an implementation based on per-data-repository SQLite databases.  Such an implementation will be important for supporting development work and science users on external systems, but it will not be adequate for most production use cases, which we expect to use centralized database servers to support all repositories in the Data Backbone.  This will require a less-direct mapping between Python classes and SQL tables, especially to avoid the need to permit users to add new tables for new :py:class:`Datasets <Dataset>` when a :py:class:`SuperTask` is run.
+The naive approach may work for an implementation based on per-data-repository SQLite databases.  Such an implementation will be important for supporting development work and science users on external systems, but it will not be adequate for most production use cases, which we expect to use centralized database servers to support all repositories in the Data Backbone.  This will require a less-direct mapping between Python classes and SQL tables, especially to avoid the need to permit users to add new tables for new :py:class:`Datasets <Dataset>` types when a :py:class:`SuperTask` is run.
 
 
 .. _preflight:
