@@ -55,6 +55,17 @@
 Overview
 ========
 
+This document describes the preliminary design for the SuperTask Library, an abstraction layer and set of utilities that are intended to allow LSST's algorithmic pipeline code to be executed across a broad range of computing environments, usage contexts, and input/output storage systems.  A key goal of SuperTask is to minimize any per-environment per-algorithm customization, allowing a cleaner divide between the responsibilities of algorithm developers, workflow/control system developers, and operators.
+
+The smallest pieces of algorithmic code managed by this system are concrete :py:class:`SuperTasks <SuperTask>`, which inherit from the abstract base class provided by the library.  The library will contain code to combine a set of :py:class:`SuperTasks <SuperTask>` (called a :py:class:`Pipeline`) with a specification of which units of data to process to produce a description of the processing to be done that can be consumed by workflow systems.
+
+Some elements of this design are still unspecified, because they rely heavily on the capabilities and interfaces of the :py:class:`Butler` data access abstraction layer.  The SuperTask Library design necessarily puts new requirements on how :py:class:`Butler` manages and reports relationships between datasets, and a :py:class:`Butler` redesign is currently in progress to address these (and other) requirements.
+
+.. note::
+
+    Once the :py:class:`Butler` redesign is complete and the :py:class:`SuperTask` design has been updated accordingly, this document will be deprecated and its content moved to `LDM-152 <https://ldm-152.lsst.io>`_, the LSST DM Middleware Design Document.
+
+
 .. _task_config_context:
 
 Task/Config Context
