@@ -195,6 +195,10 @@ Quantum Class Interface
 
         A dictionary of output datasets, with the same form as :py:attr:`inputs`
 
+    .. py:attribute:: task
+
+        The SuperTask instance that produced and should execute this set of inputs and outputs.
+
 
 .. _pipeline_interface:
 
@@ -264,6 +268,14 @@ In the new system, the combination of a dictionary-style data ID and a dataset t
 
         Define a new :py:class:`Dataset` subclass dyamically with the given name, with instances of the new class required to hold instances of exactly the given :py:class:`Unit` subclasses (via a named attribute for each :py:class:`Unit` subclass).
 
+    .. py:attribute:: creator
+
+        Optional.  A pointer to the :py:class:`Quantum` object that represents the processing steps that (will) produce this dataset.
+
+    .. py:attribute:: consumers
+
+        A (possibly empty) set of :py:class:`Quantum` objects that represent the processing steps that use this dataset as an input.
+
 .. py:class:: Unit
 
     :py:class:`Unit` is the base of a single-level hierarchy of largely predefined classes that define a static data model.  Each concrete :py:class:`Unit` subclass represents a type of unit of data, such as visits, sensors, or patches of sky, and instances of those classes represent *actual* visits, sensors, or patches of sky.
@@ -296,6 +308,22 @@ In the new system, the combination of a dictionary-style data ID and a dataset t
 
         Create and add a :py:class:`Dataset` instance to the graph, ensuring it is proprely added to the back-reference dictionaries of the :py:class:`Units <Unit>` that define it.  The :py:class:`Dataset` instance is not actually added to the data repository the graph represents; adding them to the graph allows it represent the expected future state of the repository after the processing that produces the dataset has completed.
 
+.. py:function:: makeRepoGraph(repository, NeededDatasets, FutureDatasets, where)
+
+    Construct a :py:class:`RepoGraph` representing a subset of the given data repository by executing a SQL query against the repository database and interpreting the results.
+
+    :param str repository: a string URI identifying the input data repository.
+
+    :param tuple NeededDatasets: a tuple of :py:class:`Dataset` subclass type objects whose instances and corresponding :py:class:`Units <Unit>` must be included in the graph, and restricted to only datasets already present in the input data repository.
+
+    :param tuple FutureDatasets: a tuple of :py:class:`Dataset` subclass type objects whose :py:class:`Unit <Unit>` types must be included in the graph, but whose instances should not not be restricted by what is present in the data repository.
+
+    :param str where: a string containing a SQL ``WHERE`` clause against the schema defined by the set of :py:class:`Unit` classes in the repository, which will be used to restrict the :py:class:`Units <Unit>` and :py:class:`Datasets <Dataset>` in the returned graph.
+
+    :return: a :py:class:`RepoGraph`
+
+    Like other interfaces that interact with a data repository, this function may ultimately become part of a Butler API (with the :py:arg:`repository` argument removed, as the Butler would then be initialized with that repository).
+
 
 Connecting Python to SQL
 ------------------------
@@ -307,14 +335,41 @@ The naive approach may work for an implementation based on per-data-repository S
 
 .. _preflight:
 
-Pre-flight environment
+Pre-flight Environment
 ======================
 
-(in particular, the design and behavior that's common across all the implementations)
+With the class interfaces described in the last few sections, we can now more fully describe the "pre-flight" procedure summarized in Section :ref:`functional_design`.  Unlike the :ref:`quantum execution environment <quantum_execution>`, most of preflight is common code shared by all PreflightFrameworks, which simply provide different front-end APIs appropriate for their users and supply an appropriate implementation of :py:func:`makeRepoGraph` for the given input data repository.
 
-- “Science DAG” definition
-- using the DataID-mapping tool to implement defineQuanta
-- logic to produce the “Science DAG” from calls to defineQuanta
+The inputs to all PreflightFrameworks (though one or more may be defaulted) are:
+
+ - The input data repository or a Butler initialized to point to it.
+
+ - A user expression defining the units of data to process, in the form of a SQL ``WHERE`` clause that can be passed *directly* to :py:func:`makeRepoGraph`.
+
+ - A :py:class:`Pipeline` instance.
+
+A PreflightFramework delegates all remaining work to the :py:class:`GraphBuilder`, constructing it with the the input data repository and ``WHERE`` expression and calling :py:meth:`GraphBuilder.makeGraph` with the  :py:class:`Pipeline` instance to construct the Science DAG.
+
+.. note::
+
+    The naming for :py:class:`GraphBuilder`, :py:methd:`GraphBuilder.makeGraph`, and :py:function:`makeRepoGraph` is extremely confusing.  We need better names for all of these.
+
+.. note::
+
+    I'm not sure this construct-then-use pattern for GraphBuilder makes sense, since it's not really reusable once constructed and constructing it doesn't actually involve any logic; I think it might work better as a free function that just takes all three inputs at once.
+
+.. py:class:: GraphBuilder
+
+    .. py:method:: __init__(self, repository, where)
+
+    .. py:method:: makeGraph(self, pipeline)
+
+        The :py:class:GraphBuilder` first iterates over the SuperTasks in the :py:class:`Pipeline`, instantiating them (which freezes their configuration), and accumulating a list of input and output dataset types by calling :py:meth:`getDatasetClasses` on each.  These are passed, along with the input data repository and data unit expression, to :py:func:`makeRepoGraph` to construct a :py:class:`RepoGraph` that represents the full universe of units of data that the SuperTasks to be executed may operate on.
+
+        The :py:class:`GraphBuilder` then makes a second pass through the SuperTasks, this time calling :py:meth:`SuperTask.defineQuanta` with the :py:class:`RepoGraph`.  As each SuperTask defines its quanta, it also adds the :py:class:`Datasets <Dataset>` it will produce to the graph, making it appear to subsequent SuperTasks that these datasets are already present in the repository and may be used as inputs.  The result of this iteration is a sequence of :py:class:`Quantum` instances.
+
+        The final step is to transfrom this sequence into the Science DAG, which is a directed acyclic graph describing the dependencies of the processing.  Each node in the Science DAG is conceptually either a :py:class:`Quantum` or a :py:class:`Dataset`, with the direction of the graph edges representing inputs (:py:class:`Dataset` node to :py:class:`Quantum` node) and outputs (:py:class:`Quantum` node to :py:class:`Dataset` node).  Because each :py:class:`Quantum` instance holds its input and output :py:class:`Dataset` instances, the only remaining step to making the sequence of quanta into a fully-walkable graph is to add back-references from each :py:class:`Dataset`, filling in its :py:attr:`creator <Dataset.creator>` and :py:attr:`consumers <Dataset.consumers>` attributes to point to the appropriate :py:class:`Quantum` instances.
+
 
 .. _quantum_execution:
 
