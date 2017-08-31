@@ -368,9 +368,13 @@ A more detailed description of :py:class:`QuantumGraphBuilder` is below.
 
 .. py:class:: QuantumGraphBuilder
 
-    .. py:method:: __init__(self, pipeline)
+    .. py:method:: __init__(self, pipeline, butler)
 
         The :py:class:GraphBuilder` first iterates over the SuperTasks in the :py:class:`Pipeline`, instantiating them (which freezes their configuration), and accumulating a list of input and output dataset types by calling :py:meth:`getDatasetClasses` on each.  Dictionaries containing configuration and schemas are also constructed for later use in recording provenance.
+
+        .. note::
+
+            While instantiating a SuperTask in general requires a Butler, this is mostly to allow downstream SuperTasks to obtain the schemas of their input dataset types.  While there's no way to avoid having :py:class:`QuantumGraphBuilder` use the given Butler to load the schemas of the overall input dataset types (assuming any of these are catalogs), it could use a dummy Butler backed by a simple dict to transfer schemas obtained by calling :py:meth:`SuperTask.getDatasetSchemas()` to downstream :py:meth:`SuperTask.__init__`.  At the same time, it would build up its own py:attr:`schemas` attribute, which could be used by the PreFlightFramework to actually persist the schemas.
 
     .. py:attribute:: NeededDatasets
 
