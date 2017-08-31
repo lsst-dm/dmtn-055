@@ -107,24 +107,24 @@ The typical usage pattern for the SuperTask Library is as follows.
 
 #.  A developer defines a :py:class:`Pipeline` from a sequence of :py:class:`SuperTasks <SuperTask>`, including their configuration, either programmatically or by editing a TBD text-based, human-readable file format.  Other developers may then modify the :py:class:`Pipeline` to modify configuration or insert or delete :py:class:`SuperTasks <SuperTask>`, again via either approach.
 
-#.  An operator passes the :py:class:`Pipeline`, an input data repository, and a Data ID Expression (see :ref:`data_id_mapping`) to a PreflightFramework.  Different PreflightFrameworks will be implemented for different contexts.  Some PreflightFrameworks may provide an interface for making a final round of modifications to the :py:class:`Pipeline` at this stage, but these modifications are not qualitatively different from those in the previous step.
+#.  An operator passes the :py:class:`Pipeline`, an input data repository, and a Data ID Expression (see :ref:`data_id_mapping`) to a PreFlightFramework.  Different PreFlightFrameworks will be implemented for different contexts.  Some PreFlightFrameworks may provide an interface for making a final round of modifications to the :py:class:`Pipeline` at this stage, but these modifications are not qualitatively different from those in the previous step.
 
-#.  The PreflightFramework passes the :py:class:`Pipeline`, the input data repository, and the Data ID Expression to a *GraphBuilder* (see :ref:`preflight`), which
+#.  The PreFlightFramework passes the :py:class:`Pipeline`, the input data repository, and the Data ID Expression to a *GraphBuilder* (see :ref:`preflight`), which
 
     - inspects the :py:class:`Pipeline` to construct a list of all dataset types consumed and/or produced by the :py:class:`Pipeline`;
     - queries the data repository to obtain a *RepoGraph* that contains all datasets of these types that match the given Data ID Expression (see :ref:`data_id_mapping`);
     - calls the :py:meth:`defineQuanta <SuperTask.defineQuanta>` method of each :py:class:`SuperTask` in the :py:class:`Pipeline` in sequence, accumulating a list of all quanta to be executed;
-    - constructs the *Science DAG* (see :ref:`preflight`), a bipartate directed acyclic graph with quantum vertices linked by the dataset vertices they produce and consume.
+    - constructs the *Quantum Graph* (see :ref:`preflight`), a bipartate directed acyclic graph with quantum vertices linked by the dataset vertices they produce and consume.
 
-#.  The Science DAG is passed to an ExecutionFramework, along with additional configuration for how the processing is to be performed (changes in this configuration must not change the outputs of the :py:class:`Pipeline` except to allow intermediate datasets to be elided).  The ExecutionFramework may be the same class as the PreflightFramework (as in :py:class:`lsst.pipe.base.CmdLineTask`, which performs both roles), which makes this step a no-op.  It may also be a completely different class that may be run in an entirely different compute environment (via a serialized Science DAG).
+#.  The Quantum Graph is passed to an ExecutionFramework, along with additional configuration for how the processing is to be performed (changes in this configuration must not change the outputs of the :py:class:`Pipeline` except to allow intermediate datasets to be elided).  The ExecutionFramework may be the same class as the PreFlightFramework (as in :py:class:`lsst.pipe.base.CmdLineTask`, which performs both roles), which makes this step a no-op.  It may also be a completely different class that may be run in an entirely different compute environment (via a serialized Quantum Graph).
 
 #.  The ExecutionFramework creates one or more output data repositories and records in them any repository-wide provenance (such as the :py:class:`Pipeline` configuration or software versions).
 
-#.  The ExecutionFramework walks the Science DAG according to the partial ordering it defines, and calls ``runQuantum`` on the appropriate concrete SuperTask for each quantum vertex.  Depending on the activator, the SuperTasks may be run directly in the same compute environment, or submitted to a workflow system for execution elsewhere (probably by translating the generic Science DAG to a format specific to a particular workflow system).  In some environments a temporary local data repository containing only the datasets consumed by a particular set of quanta may be created in scratch space to support execution in a context in which the original data repositories are not accessible, with output datasets similarly staged back to the true output data repositories.
+#.  The ExecutionFramework walks the Quantum Graph according to the partial ordering it defines, and calls ``runQuantum`` on the appropriate concrete SuperTask for each quantum vertex.  Depending on the activator, the SuperTasks may be run directly in the same compute environment, or submitted to a workflow system for execution elsewhere (probably by translating the generic Quantum Graph to a format specific to a particular workflow system).  In some environments a temporary local data repository containing only the datasets consumed by a particular set of quanta may be created in scratch space to support execution in a context in which the original data repositories are not accessible, with output datasets similarly staged back to the true output data repositories.
 
 .. note::
 
-    The above procedure does not provide a mechanism for adding camera-specific overrides to the configuration.  I think this has to be part of the :py:class:`Pipeline` interface that's done in the first step, not something done later by PreflightFrameworks.  That's especially true if we want to permit Pipelines that aggregate data from multiple cameras; in that case I think we'd need the Pipeline itself to hold the overrides for different cameras in addition to the defaults to avoid spurious provenance issues from having different configurations of the same Pipeline in a repo.  Given that different cameras might even change the SuperTasks we want in a Pipeline, we may need to make it possible to parameterize all of a Pipeline's definition on different Units of data (not just cameras, but filters).  I'm sure that's doable, but it is not currently supported by the :py:class:`Pipeline` API in this document.
+    The above procedure does not provide a mechanism for adding camera-specific overrides to the configuration.  I think this has to be part of the :py:class:`Pipeline` interface that's done in the first step, not something done later by PreFlightFrameworks.  That's especially true if we want to permit Pipelines that aggregate data from multiple cameras; in that case I think we'd need the Pipeline itself to hold the overrides for different cameras in addition to the defaults to avoid spurious provenance issues from having different configurations of the same Pipeline in a repo.  Given that different cameras might even change the SuperTasks we want in a Pipeline, we may need to make it possible to parameterize all of a Pipeline's definition on different Units of data (not just cameras, but filters).  I'm sure that's doable, but it is not currently supported by the :py:class:`Pipeline` API in this document.
 
     We may also be able to avoid that mess just giving up entirely on repository-level provenance.  Given that we will need more fine-grained provenance ultimately anyway, that may be the best approach.
 
@@ -166,8 +166,8 @@ SuperTask Class Interface
     This differs from the code in ``pipe_supertask`` a bit):
      - I've rewritten ``__init__``'s signature to use ``**kwds`` to allow it to forward all arguments to the ``Task`` constructor.
      - I've removed the ``butler`` argument from ``defineQuanta``; I don't think it's necessary.
-     - I've removed ``write_config`` and ``_get(_resource)_config_name``; I think writing is the responsibility of the PreflightFramework, and I think the config name should always be set from ``_DefaultName`` (which is part of ``Task``, not just :py:class:`SuperTask`).
-     - Removed ``write_schema`` in favor of ``getDatasetSchemas``.  Again, I think writing should be the responsibility of the PreflightFramework. so we just need a way for it to get the schema(s) from the SuperTask.
+     - I've removed ``write_config`` and ``_get(_resource)_config_name``; I think writing is the responsibility of the PreFlightFramework, and I think the config name should always be set from ``_DefaultName`` (which is part of ``Task``, not just :py:class:`SuperTask`).
+     - Removed ``write_schema`` in favor of ``getDatasetSchemas``.  Again, I think writing should be the responsibility of the PreFlightFramework. so we just need a way for it to get the schema(s) from the SuperTask.
 
 
 .. _supertask_interface_configuration:
@@ -335,12 +335,12 @@ The naive approach may work for an implementation based on per-data-repository S
 
 .. _preflight:
 
-Pre-flight Environment
+Pre-Flight Environment
 ======================
 
-With the class interfaces described in the last few sections, we can now more fully describe the "pre-flight" procedure summarized in Section :ref:`functional_design`.  Unlike the :ref:`quantum execution environment <quantum_execution>`, most of preflight is common code shared by all PreflightFrameworks, which simply provide different front-end APIs appropriate for their users and supply an appropriate implementation of :py:func:`makeRepoGraph` for the given input data repository.
+With the class interfaces described in the last few sections, we can now more fully describe the "pre-flight" procedure summarized in Section :ref:`functional_design`.  Unlike the :ref:`quantum execution environment <quantum_execution>`, most of preflight is common code shared by all PreFlightFrameworks, which simply provide different front-end APIs appropriate for their users and supply an appropriate implementation of :py:func:`makeRepoGraph` for the given input data repository.
 
-The inputs to all PreflightFrameworks (though one or more may be defaulted) are:
+The inputs to all PreFlightFrameworks (though one or more may be defaulted) are:
 
  - The input data repository or a Butler initialized to point to it.
 
@@ -348,27 +348,68 @@ The inputs to all PreflightFrameworks (though one or more may be defaulted) are:
 
  - A :py:class:`Pipeline` instance.
 
-A PreflightFramework delegates all remaining work to the :py:class:`GraphBuilder`, constructing it with the the input data repository and ``WHERE`` expression and calling :py:meth:`GraphBuilder.makeGraph` with the  :py:class:`Pipeline` instance to construct the Science DAG.
+A PreFlightFramework delegates essentially all remaining work to the :py:class:`QuantumGraphBuilder`:
+
+ - The PreFlightFramework constructs a :py:class:`QuantumGraphBuilder`, passing it the :py:class:`Pipeline` instance.  The :py:class:`QuantumGraphBuilder` instantiates all SuperTasks in the :py:class:`Pipeline`, collecting their (now frozen) configuration, schemas, and input and output dataset types.
+
+ - The PreFlightFramework creates a :py:class:`RepoGraph` from the input data repository, the user ``WHERE`` expression, and the lists of dataset types reported by the :py:class:`QuantumGraphBuilder` by calling `py:func:`makeRepoGraph`.  The design also leaves open the possibility that the operations PreFlightFramework will construct a :py:class:`RepoGraph` by some other means (which could support a more complicated set of SQL queries that target an operations-specific SQL schema).
+
+ - :py:meth:`QuantumGraphBuilder.makeGraph` is called with the :py:class:`RepoGraph` to build the Quantum Graph.
 
 .. note::
 
-    The naming for :py:class:`GraphBuilder`, :py:methd:`GraphBuilder.makeGraph`, and :py:function:`makeRepoGraph` is extremely confusing.  We need better names for all of these.
+    This differs from the code in ``pipe_supertask`` in two big ways:
 
-.. note::
+     - I've renamed the class from ``GraphBuilder`` to ``QuantumGraphBuilder`` for better disambiguation with ``makeRepoGraph``.
 
-    I'm not sure this construct-then-use pattern for GraphBuilder makes sense, since it's not really reusable once constructed and constructing it doesn't actually involve any logic; I think it might work better as a free function that just takes all three inputs at once.
+     - I've switched up the construction and ``makeGraph`` arguments, which allows us to generate the :py:class:`RepoGraph` separately, which may be necessary to address some operations concerns.  I don't think that we gained anything from initializing ``GraphBuilder`` with the repository and the user expression in the old design.
 
-.. py:class:: GraphBuilder
+A more detailed description of :py:class:`QuantumGraphBuilder` is below.
 
-    .. py:method:: __init__(self, repository, where)
+.. py:class:: QuantumGraphBuilder
 
-    .. py:method:: makeGraph(self, pipeline)
+    .. py:method:: __init__(self, pipeline)
 
-        The :py:class:GraphBuilder` first iterates over the SuperTasks in the :py:class:`Pipeline`, instantiating them (which freezes their configuration), and accumulating a list of input and output dataset types by calling :py:meth:`getDatasetClasses` on each.  These are passed, along with the input data repository and data unit expression, to :py:func:`makeRepoGraph` to construct a :py:class:`RepoGraph` that represents the full universe of units of data that the SuperTasks to be executed may operate on.
+        The :py:class:GraphBuilder` first iterates over the SuperTasks in the :py:class:`Pipeline`, instantiating them (which freezes their configuration), and accumulating a list of input and output dataset types by calling :py:meth:`getDatasetClasses` on each.  Dictionaries containing configuration and schemas are also constructed for later use in recording provenance.
 
-        The :py:class:`GraphBuilder` then makes a second pass through the SuperTasks, this time calling :py:meth:`SuperTask.defineQuanta` with the :py:class:`RepoGraph`.  As each SuperTask defines its quanta, it also adds the :py:class:`Datasets <Dataset>` it will produce to the graph, making it appear to subsequent SuperTasks that these datasets are already present in the repository and may be used as inputs.  The result of this iteration is a sequence of :py:class:`Quantum` instances.
+    .. py:attribute:: NeededDatasets
 
-        The final step is to transfrom this sequence into the Science DAG, which is a directed acyclic graph describing the dependencies of the processing.  Each node in the Science DAG is conceptually either a :py:class:`Quantum` or a :py:class:`Dataset`, with the direction of the graph edges representing inputs (:py:class:`Dataset` node to :py:class:`Quantum` node) and outputs (:py:class:`Quantum` node to :py:class:`Dataset` node).  Because each :py:class:`Quantum` instance holds its input and output :py:class:`Dataset` instances, the only remaining step to making the sequence of quanta into a fully-walkable graph is to add back-references from each :py:class:`Dataset`, filling in its :py:attr:`creator <Dataset.creator>` and :py:attr:`consumers <Dataset.consumers>` attributes to point to the appropriate :py:class:`Quantum` instances.
+        A ``set`` of dataset types (subclasses of :py:class:`Dataset`) that are used strictly as inputs by the :py:class:`Pipeline` the :py:class:`QuantumGraphBuilder` was constructed with.
+
+    .. py:attribute:: FutureDatasets
+
+        A ``set`` of dataset types (subclasses of :py:class:`Dataset`) that are produced as outputs (including intermediates) by the :py:class:`Pipeline` the :py:class:`QuantumGraphBuilder` was constructed with.
+
+    .. py:attribute:: configs
+
+        A ``dict`` mapping SuperTask name to Config instance.
+
+    .. py::attribute:: schemas
+
+        A ``dict`` mapping :py:class:`Dataset` subclass to :py:class:`lsst.afw.table.Schema`, with entries only for output catalog datasets.
+
+    .. py:method:: makeGraph(self, repoGraph)
+
+        Construct a :py:class:`QuantumGraph` representing (conceptually) the processing to be performed and its dependencies.
+
+        This is implemented by iterating through the SuperTasks instantiated by :py:meth:`__init__`, calling :py:meth:`SuperTask.defineQuanta` with the :py:class:`RepoGraph`.  As each SuperTask defines its quanta, it also adds the :py:class:`Datasets <Dataset>` it will produce to the :py:class:`RepoGraph`, making it appear to subsequent SuperTasks that these datasets are already present in the repository and may be used as inputs.  The result of this iteration is a sequence of :py:class:`Quantum` instances.
+
+        The final step is to transfrom this sequence into the Quantum Graph, which is a directed acyclic graph describing the dependencies of the processing.  Each node in the Quantum Graph is conceptually either a :py:class:`Quantum` or a :py:class:`Dataset`, with the direction of the graph edges representing inputs (:py:class:`Dataset` node to :py:class:`Quantum` node) and outputs (:py:class:`Quantum` node to :py:class:`Dataset` node).  Because each :py:class:`Quantum` instance holds its input and output :py:class:`Dataset` instances, the only remaining step to making the sequence of quanta into a fully-walkable graph is to add back-references from each :py:class:`Dataset`, filling in its :py:attr:`creator <Dataset.creator>` and :py:attr:`consumers <Dataset.consumers>` attributes to point to the appropriate :py:class:`Quantum` instances.
+
+
+.. py:class:: QuantumGraph
+
+    The attributes that connect :py:class:`Quanta <Quantum>` to :py:class:`Datasets <Dataset>` naturally form a graph data structure, which we call a :py:class:`QuantumGraph`.
+
+    Because the graph structure is mostly defined by its constituent classes, :py:class:`QuantumGraph` simply provides flat access to these.
+
+    .. py:attribute:: quanta
+
+        A list of :py:class:`Quantum` instances, ordered in a way that satisfies dependencies (which may be unique).
+
+    .. py:attribute:: datasets
+
+        A dictionary with :py:class:`Dataset` subclasses as keys and sets of :py:class:`Dataset` instances of that type as values.
 
 
 .. _quantum_execution:
@@ -412,3 +453,4 @@ Worked examples
 .. .. bibliography:: local.bib lsstbib/books.bib lsstbib/lsst.bib lsstbib/lsst-dm.bib lsstbib/refs.bib lsstbib/refs_ads.bib
 ..    :encoding: latex+latin
 ..    :style: lsst_aa
+interest
