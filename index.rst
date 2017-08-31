@@ -418,10 +418,25 @@ A more detailed description of :py:class:`QuantumGraphBuilder` is below.
 
 .. _quantum_execution:
 
-Quantum-execution environment
+Quantum-Execution Environment
 =============================
 
-(in particular, the design and behavior that's common across all the implementations)
+Unlike the pre-flight environment, the code that implementats the quantum execution environment in which :py:meth:`SuperTask.runQuantum` is called and actual algorithmic code is run is in general not shared between different implementations.
+
+A QuantumExecutionFramework can be as simple as a thin layer that provides a call to :py:meth:`SuperTask.runQuantum` with a Butler or as complex as a multi-level workflow system that involves staging data to local filesystems, strict provenance control, multiple batch submissions, and automatic retries.
+
+At the lowest level, all QuantumExecutionFrameworks will have to do at least the following tasks:
+
+ - Instantiate one or more SuperTasks from the :py:class:`Pipeline` (ensuring that this is done consistently with how they were instantiated in pre-flight).  This also involves initializing logging for SuperTask(s) and their subtasks, and will require setting up a Butler (possibly a simple dict-backed one) to facilitate the transfer of schema information.
+
+ - Create a Butler (possibly the same as the one used for SuperTask construction).
+
+ - Call :py:meth:`SuperTask.runQuantum` on each of the :py:class:`Quantum` instances it is responsible for running.
+
+When careful control over provenance is necessary, the Butler passed to :py:meth:`SuperTask.runQuantum` can be instrumented to detect the actual datasets loaded by the task, though even this probably cannot fully replace reporting by the task itself about what was used.
+
+When data is staged to a local filesystem for execution, the Butler created in the local filesystem need not have any metadata or association capabilities, and it need only provide the capability to ``get`` and ``put`` the input and output datasets that are included in the quanta to be executed.  Because the mappings between the :py:class:`Datasets <Dataset>` in the quanta and the staged files can be fully determined at pre-flight, the Butler implementation here can be incredibly simple as long as the staging system as transfer an additional file containing that mapping.
+
 
 .. _implementations:
 
