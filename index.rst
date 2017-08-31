@@ -431,13 +431,6 @@ Notes on specific expected implementations
 - SUIT / Firefly / Science Platform Portal Aspect use of SuperTask
 (open to adding others)
 
-.. _butler_interaction:
-
-Consequential requirements on Butler to support SuperTask
-=========================================================
-
-(and description of how Butler is expected to be used in the SuperTask framework)
-
 .. _examples:
 
 Worked examples
