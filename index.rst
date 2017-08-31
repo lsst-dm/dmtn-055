@@ -153,11 +153,11 @@ SuperTask Class Interface
 
         This method runs the SuperTask on the given :py:class:`Quantum`, using a ``Butler`` for input and output.  For most concrete SuperTasks, this should simply use ``Butler.get`` to retrieve inputs, call :py:meth:`run`, and then use ``Butler.put`` to write outputs.
 
-    .. py::method:: getDatasetClasses(self)
+    .. py:method:: getDatasetClasses(self)
 
-        Called during :ref:`pre-flight <preflight>` (before :py:meth:`defineQuanta`), this method returns the sets of input and output :py:class:`Datasets <Dataset>` classes used by this :py:class:`SuperTask`.  As long as :py:class:`DatasetField <supertask_interface_configuration>` is used to control the :py:class:`Dataset` classes utilized by the :py:class:`SuperTask's <SuperTask>`, the default implementation provided by the :py:class:`SuperTask` base class itself should be sufficient.
+        Called during :ref:`pre-flight <preflight>` (before :py:meth:`defineQuanta`), this method returns the sets of input and output :py:class:`Datasets <Dataset>` classes used by this :py:class:`SuperTask`.  As long as :ref:`DatasetField <supertask_interface_configuration>` is used to control the :py:class:`Dataset` classes utilized by the :py:class:`SuperTask's <SuperTask>`, the default implementation provided by the :py:class:`SuperTask` base class itself should be sufficient.
 
-    .. py::method:: getDatasetSchemas(self)
+    .. py:method:: getDatasetSchemas(self)
 
         This method returns a dict containing the schemas that correspond to any table-like datasets output by the :py:class:`SuperTask`.  Dictionary keys are :py:class:`Dataset` types.  This may be extended in the future to contain other schema-like information for non-table datasets.
 
@@ -175,7 +175,7 @@ SuperTask Class Interface
 Configuration and DatasetField
 ------------------------------
 
-The actual dataset types used by a SuperTask are configurable, allowing new types to be defined at configuration time.  The units of data utilized by these types are fixed by the concrete SuperTask's definition, however, and only the names may be configured.  This will be handled by a new :py:class:`DatasetField` class in ``pex_config`` that is customized for holding dataset definitions.
+The actual dataset types used by a SuperTask are configurable, allowing new types to be defined at configuration time.  The units of data utilized by these types are fixed by the concrete SuperTask's definition, however, and only the names may be configured.  This will be handled by a new ``DatasetField`` class in ``pex_config`` that is customized for holding dataset definitions.
 
 
 .. _quantum_interface:
@@ -370,7 +370,7 @@ A more detailed description of :py:class:`QuantumGraphBuilder` is below.
 
     .. py:method:: __init__(self, pipeline, butler)
 
-        The :py:class:GraphBuilder` first iterates over the SuperTasks in the :py:class:`Pipeline`, instantiating them (which freezes their configuration), and accumulating a list of input and output dataset types by calling :py:meth:`getDatasetClasses` on each.  Dictionaries containing configuration and schemas are also constructed for later use in recording provenance.
+        The :py:class:GraphBuilder` first iterates over the SuperTasks in the :py:class:`Pipeline`, instantiating them (which freezes their configuration), and accumulating a list of input and output dataset types by calling :py:meth:`SuperTask.getDatasetClasses` on each.  Dictionaries containing configuration and schemas are also constructed for later use in recording provenance.
 
         .. note::
 
@@ -435,7 +435,7 @@ At the lowest level, all QuantumExecutionFrameworks will have to do at least the
 
 When careful control over provenance is necessary, the Butler passed to :py:meth:`SuperTask.runQuantum` can be instrumented to detect the actual datasets loaded by the task, though even this probably cannot fully replace reporting by the task itself about what was used.
 
-When data is staged to a local filesystem for execution, the Butler created in the local filesystem need not have any metadata or association capabilities, and it need only provide the capability to ``get`` and ``put`` the input and output datasets that are included in the quanta to be executed.  Because the mappings between the :py:class:`Datasets <Dataset>` in the quanta and the staged files can be fully determined at pre-flight, the Butler implementation here can be incredibly simple as long as the staging system as transfer an additional file containing that mapping.
+When data is staged to a local filesystem for execution, the Butler created in the local filesystem only needs to provide the capability to ``get`` and ``put`` the input and output datasets that are included in the quanta to be executed.  Because the mappings between the :py:class:`Datasets <Dataset>` in the quanta and the staged files can be fully determined at pre-flight, the Butler implementation here can be quite simple as long as the staging system can transfer an additional file containing those mappings.
 
 
 .. _implementations:
