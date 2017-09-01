@@ -443,12 +443,60 @@ When data is staged to a local filesystem for execution, the Butler created in t
 Notes on specific expected implementations
 ==========================================
 
-(of the Pre-flight and Quantum-execution environments)
 
-- CmdLineFramework
-- DRP production
-- SUIT / Firefly / Science Platform Portal Aspect use of SuperTask
-(open to adding others)
+.. _command_line_implementation:
+
+CmdLineFramework
+----------------
+
+The only complete framework for running SuperTasks that will be provided by the SuperTask Library itself is CmdLineFramework, which provides both a PreFlightFramework that can be used from command-line shells and a QuantumExecutionFramework that runs :py:class:`Pipeline` in a single-node, multi-core environment using Python's ``multiprocessing`` module.
+
+The QuantumExecutionFramework provided by CmdLineActivator will also have programmatic entry points, which may permit it to be used by batch-based execution frameworks for running a subset of a larger job on a particular node.
+
+
+.. _operations_batch_implementation:
+
+Data Release Production in Operations
+-------------------------------------
+
+The batch system used to produce LSST data releases (as well as large-scale integration tests) will execute SuperTasks using a workflow system probably based on either Pegasus/HTCondor or the DES Data Management system (which also uses HTCondor), with persistent storage provided by the Data Backbone and metadata information provided by a monolithic database server.  Whenever possible, jobs will use local temporary storage rather than a global filesystem, and SuperTasks executed by this system will never write to the Data Backbone directly.
+
+Because (at least) the vast majority of LSST DRP processing can be split into completely independent spatial tiles, we expect to process each of these tiles (which may involve multiple skymap "tracts") manually in turn, rather than have the workflow system attempt to schedule the entire production with a single invocation; this should drastically decrease the amount of storage needed for intermediate data products.  Similarly, while the Science Pipelines team may deliver a single :py:class:`Pipeline` that represents the entirety of DRP processing, operators may choose to split this into multiple smaller :py:class:`Pipeline <Pipeline>` that can be run manually in serial over a sky tile.
+
+A major challenge in developing the SuperTask execution framework for operations batch processing is reconciling the database system needed by the operations system to manage metadata, detailed provenance information and fine-grained control over input data products with the data repository and "simple common schema" concepts that form the core of the system described in :ref:`data_id_mapping`.  The best possible outcome of the remaining design work in this area is that we find a way to define the common schema containing :py:class:`Units <Unit>` and :py:class:`Datasets <Dataset>` as a set of SQL views on the full operations schema, and that this interface, when fully fleshed-out, provides sufficient fine-grained control to meet the needs of operations.  As an intermediate fallback, operators could write queries to select input data and units of processing directly against the full operations schema, while making sure the results of those queries take a form that allows them to be translated into a :py:class:`RepoGraph` via a different piece of code.  In the worst-case scenario, operators would essentially re-implement much of the logic contained in the actual DRP :py:class:`Pipeline's <Pipeline>` :py:meth:`SuperTask.defineQuanta` methods, and use a completely different system to build the processing DAG.  Even in this scenario, the rest of the SuperTask interface could be used as defined here, and :py:class:`SuperTask.defineQuanta` could still be used in other execution contexts.
+
+
+.. _external_batch_implementation:
+
+Mid-Scale and External Batch Processing
+---------------------------------------
+
+A batch-based execution system that does not depend on the full operations environment is important for development during construction and operations (as DM developers and operations scientists are not expected to use the operations system directly), external collaborators (such as the Hyper Suprime-Cam team or the LSST Dark Energy Science Collaboration), and possibly batch execution for science users running in the LSST Science Platform (see :ref:`science_platform_implementation`).
+
+Ideally, this would at least make heavy use of components developed for the batch operations system :ref:`operations_batch_implementation`; this component is, in essence, a version of that system with stronger (but nevertheless vague) requirements on ease-of-use and install and weaker (but also vague) requirements on scalability and robustness.
+
+The combination of a tight schedule for development of the operations system and the lack of clear requirements and responsibility for the development of the external batch system may make reusing many components from the operations system difficult.
+
+
+.. _science_platform_implementation:
+
+LSST Science Platform
+---------------------
+
+In the notebook environment of the Science Platform, SuperTask will be executed in any of three ways:
+
+ - directly in the Python kernel of the notebook, with no pre-flight (and probably just as regular Tasks via :py:meth:`Task.run` rather than :py:meth:`SuperTask.runQuantum`).;
+
+ - in the notebook container, using multiple processes in a manner very similar to (and probably implemented by :ref:`CmdLineFramework <command_line_implementation>`, though we will provide an interface for launching such jobs directly from the notebook);
+
+ - via a batch system attached to the Science Platform, using either a copy or walled-off corner of the :ref:`operations batch system <operations_batch_implementation>`, a version of the :ref:`mid-scale/external system <external_batch_implementation>`, or something more closely-related to Qserv next-to-database processing.
+
+The portal environment of the Science Platform may also launch certain predefined SuperTasks to perform specific image-processing tasks.
+
+.. note::
+
+    I don't really have any sense for what kinds of SuperTasks the portal might want to launch or whether they'd be more appropriately run in a container or in a batch system (though I expect the latter would be rather high-latency for the portal).
+
 
 .. _examples:
 
