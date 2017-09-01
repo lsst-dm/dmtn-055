@@ -189,7 +189,7 @@ Quantum Class Interface
 
     .. py:attribute:: inputs
 
-        A dictionary of input datasets, with :py:class:`Dataset` types as keys and a `set` of :py:class:`Dataset` instances as values.
+        A dictionary of input datasets, with dataset type names as keys and a `set` of :py:class:`Dataset` instances as values.
 
     .. py:attribute:: outputs
 
@@ -268,6 +268,10 @@ In the new system, the combination of a dictionary-style data ID and a dataset t
 
         Define a new :py:class:`Dataset` subclass dyamically with the given name, with instances of the new class required to hold instances of exactly the given :py:class:`Unit` subclasses (via a named attribute for each :py:class:`Unit` subclass).
 
+    .. py:attribute:: units
+
+        A dictionary containing the units that identify this dataset, with unit type names as keys and :py:class:`Unit` instances as values.
+
     .. py:attribute:: creator
 
         Optional.  A pointer to the :py:class:`Quantum` object that represents the processing steps that (will) produce this dataset.
@@ -284,11 +288,11 @@ In the new system, the combination of a dictionary-style data ID and a dataset t
 
     .. py::attribute:: datasets
 
-        A dictionary containing all :py:class:`Dataset` instances that refer to this :py:class:`Unit` instance.  Keys are :py:class:`Dataset` subclasses, and values are sets of instances of that subclass.
+        A dictionary containing all :py:class:`Dataset` instances that refer to this :py:class:`Unit` instance.  Keys are dataset type names, and values are sets of instances of that subclass.
 
     .. py::attribute:: related
 
-        A dictionary containing all :py:class:`Unit` instances that are directly related to this instance.  Keys are :py:class:`Unit` subclasses, and values are sets fo instances of that subclass.
+        A dictionary containing all :py:class:`Unit` instances that are directly related to this instance.  Keys are unit type names, and values are sets fo instances of that subclass.
 
 .. py:class:: RepoGraph
 
@@ -298,11 +302,11 @@ In the new system, the combination of a dictionary-style data ID and a dataset t
 
     .. py:attribute:: units
 
-        A dictionary with :py:class:`Unit` subclasses as keys and sets of :py:class:`Unit` instances of that type as values.  Should be considered read-only.
+        A dictionary with unit type names as keys and sets of :py:class:`Unit` instances of that type as values.  Should be considered read-only.
 
     .. py:attribute:: datasets
 
-        A dictionary with :py:class:`Dataset` subclasses as keys and sets of :py:class:`Dataset` instances of that type as values.  Should be considered read-only.
+        A dictionary with dataset type names as keys and sets of :py:class:`Dataset` instances of that type as values.  Should be considered read-only.
 
     .. py::method:: addDataset(self, DatasetClass, **units)
 
@@ -413,7 +417,7 @@ A more detailed description of :py:class:`QuantumGraphBuilder` is below.
 
     .. py:attribute:: datasets
 
-        A dictionary with :py:class:`Dataset` subclasses as keys and sets of :py:class:`Dataset` instances of that type as values.
+        A dictionary with dataset type names as keys and sets of :py:class:`Dataset` instances of that type as values.
 
 
 .. _quantum_execution:
@@ -497,14 +501,6 @@ The portal environment of the Science Platform may also launch certain predefine
 
     I don't really have any sense for what kinds of SuperTasks the portal might want to launch or whether they'd be more appropriately run in a container or in a batch system (though I expect the latter would be rather high-latency for the portal).
 
-
-.. _examples:
-
-Worked examples
-===============
-
-- ISR
-- Coaddition
 
 .. .. rubric:: References
 
