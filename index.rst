@@ -509,4 +509,3 @@ The portal environment of the Science Platform may also launch certain predefine
 .. .. bibliography:: local.bib lsstbib/books.bib lsstbib/lsst.bib lsstbib/lsst-dm.bib lsstbib/refs.bib lsstbib/refs_ads.bib
 ..    :encoding: latex+latin
 ..    :style: lsst_aa
-interest
