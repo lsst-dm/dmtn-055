@@ -308,7 +308,7 @@ In the new system, the combination of a dictionary-style data ID and a dataset t
 
         A dictionary with dataset type names as keys and sets of :py:class:`Dataset` instances of that type as values.  Should be considered read-only.
 
-    .. py::method:: addDataset(self, DatasetClass, **units)
+    .. py:method:: addDataset(self, DatasetClass, **units)
 
         Create and add a :py:class:`Dataset` instance to the graph, ensuring it is proprely added to the back-reference dictionaries of the :py:class:`Units <Unit>` that define it.  The :py:class:`Dataset` instance is not actually added to the data repository the graph represents; adding them to the graph allows it represent the expected future state of the repository after the processing that produces the dataset has completed.
 
