@@ -59,11 +59,11 @@ This document describes the preliminary design for the SuperTask Library, an abs
 
 The smallest pieces of algorithmic code managed by this system are concrete :py:class:`SuperTasks <SuperTask>`, which inherit from the abstract base class provided by the library.  The library will contain code to combine a set of :py:class:`SuperTasks <SuperTask>` (called a :py:class:`Pipeline`) with a specification of which units of data to process to produce a description of the processing to be done that can be consumed by workflow systems.
 
-Some elements of this design are still unspecified, because they rely heavily on the capabilities and interfaces of the :py:class:`Butler` data access abstraction layer.  The SuperTask Library design necessarily puts new requirements on how :py:class:`Butler` manages and reports relationships between datasets, and a :py:class:`Butler` redesign is currently in progress to address these (and other) requirements.
+Some elements of this design are still unspecified, because they rely heavily on the capabilities and interfaces of the ``Butler`` data access abstraction layer.  The SuperTask Library design necessarily puts new requirements on how ``Butler`` manages and reports relationships between datasets, and a ``Butler`` redesign is currently in progress to address these (and other) requirements.
 
 .. note::
 
-    Once the :py:class:`Butler` redesign is complete and the :py:class:`SuperTask` design has been updated accordingly, this document will be deprecated and its content moved to `LDM-152 <https://ldm-152.lsst.io>`_, the LSST DM Middleware Design Document.
+    Once the ``Butler`` redesign is complete and the :py:class:`SuperTask` design has been updated accordingly, this document will be deprecated and its content moved to `LDM-152 <https://ldm-152.lsst.io>`_, the LSST DM Middleware Design Document.
 
 
 .. _task_config_context:
@@ -73,11 +73,11 @@ Task/Config Context
 
 The design for the SuperTask Library sits on top of the existing LSST concepts of *Task* and *Config* classes.  All SuperTasks are Tasks, and utilize the same Config system for algorithmic configuration parameters.
 
-A concrete Task is simply a configurable, composable, callable object.  While all Tasks inherit from a common abstract base class and define a :py:meth:`run` method, each Task defines its own signature for :py:meth:`run`, so Tasks do not really share a common interface.  The :py:class:`lsst.pipe.base.Task` abstract base class itself exists largely to provide utility code to its subclasses, such as setting up logging, providing objects to hold processing metadata, and setting up nested Tasks to be delegated to, called *subtasks*.
+A concrete Task is simply a configurable, composable, callable object.  While all Tasks inherit from a common abstract base class and define a ``run`` method, each Task defines its own signature for ``run``, so Tasks do not really share a common interface.  The ``lsst.pipe.base.Task`` abstract base class itself exists largely to provide utility code to its subclasses, such as setting up logging, providing objects to hold processing metadata, and setting up nested Tasks to be delegated to, called *subtasks*.
 
-This composition of Tasks is closely tied to our approach for configuring them, and it is this functionality that makes the Task concept so useful.  Configuration options for a Task are defined by a corresponding class that inherits from :py:class:`lsst.pex.config.Config`.  Config classes contain :py:class:`lsst.pex.config.Field` instances, which act like introspectable properties that define the types, allowed values, and documentation for configuration options.  A set of configuration values for a Task is thus just an instance of its Config class, and overrides for those values can be expressed as Python code that assigns values to to the :py:class:`Field` attributes.  When a Task delegates to another as a subtask, its Config class usually contains a special :py:class:`ConfigurableField` that holds an instance of the subtask's Config class.  :py:class:`ConfigurableField` allows this Config instance to be replaced by one for a different Task, allowing the subtask to be replaced by another with the same :py:meth:`run` signature.
+This composition of Tasks is closely tied to our approach for configuring them, and it is this functionality that makes the Task concept so useful.  Configuration options for a Task are defined by a corresponding class that inherits from ``lsst.pex.config.Config``.  Config classes contain ``lsst.pex.config.Field`` instances, which act like introspectable properties that define the types, allowed values, and documentation for configuration options.  A set of configuration values for a Task is thus just an instance of its Config class, and overrides for those values can be expressed as Python code that assigns values to to the ``Field`` attributes.  When a Task delegates to another as a subtask, its Config class usually contains a special ``ConfigurableField`` that holds an instance of the subtask's Config class.  ``ConfigurableField`` allows this Config instance to be replaced by one for a different Task, allowing the subtask to be replaced by another with the same ``run`` signature.
 
-The :py:class:`SuperTask` abstract base class inherits from :py:class:`Task`, and its concrete subclasses are expected to defined a Config class to define their configuration parameters and delegate additional work to subtasks.  Using a SuperTask *as* a subtask is not meaningful, however; in that context the SuperTask just behaves like a regular Task and the additional interfaces and functionality added by SuperTask go unused (as a result, we expect this to be rare).
+The :py:class:`SuperTask` abstract base class inherits from ``Task``, and its concrete subclasses are expected to defined a Config class to define their configuration parameters and delegate additional work to subtasks.  Using a SuperTask *as* a subtask is not meaningful, however; in that context the SuperTask just behaves like a regular Task and the additional interfaces and functionality added by SuperTask go unused (as a result, we expect this to be rare).
 
 A few additional properties of Tasks are particularly relevant for SuperTask design:
 
@@ -85,7 +85,7 @@ A few additional properties of Tasks are particularly relevant for SuperTask des
 
 - The schema of any catalogs produced by a Task must be fully defined after Task construction, and must not depend on the actual contents of any data products.
 
-- Calls to :py:meth:`run` or any other methods must not change any internal state.
+- Calls to ``run`` or any other methods must not change any internal state.
 
 
 .. _functional_design:
@@ -116,7 +116,7 @@ The typical usage pattern for the SuperTask Library is as follows.
     - calls the :py:meth:`defineQuanta <SuperTask.defineQuanta>` method of each :py:class:`SuperTask` in the :py:class:`Pipeline` in sequence, accumulating a list of all quanta to be executed;
     - constructs the *Quantum Graph* (see :ref:`preflight`), a bipartate directed acyclic graph with quantum vertices linked by the dataset vertices they produce and consume.
 
-#.  The Quantum Graph is passed to an ExecutionFramework, along with additional configuration for how the processing is to be performed (changes in this configuration must not change the outputs of the :py:class:`Pipeline` except to allow intermediate datasets to be elided).  The ExecutionFramework may be the same class as the PreFlightFramework (as in :py:class:`lsst.pipe.base.CmdLineTask`, which performs both roles), which makes this step a no-op.  It may also be a completely different class that may be run in an entirely different compute environment (via a serialized Quantum Graph).
+#.  The Quantum Graph is passed to an ExecutionFramework, along with additional configuration for how the processing is to be performed (changes in this configuration must not change the outputs of the :py:class:`Pipeline` except to allow intermediate datasets to be elided).  The ExecutionFramework may be the same class as the PreFlightFramework (as in ``lsst.pipe.base.CmdLineTask``, which performs both roles), which makes this step a no-op.  It may also be a completely different class that may be run in an entirely different compute environment (via a serialized Quantum Graph).
 
 #.  The ExecutionFramework creates one or more output data repositories and records in them any repository-wide provenance (such as the :py:class:`Pipeline` configuration or software versions).
 
@@ -138,11 +138,11 @@ SuperTask Class Interface
 
     .. py:method:: __init__(self, butler=None, **kwargs)
 
-        All concrete SuperTasks must have the :py:method:`__init__` signature shown here, in which ``**kwargs`` contains only arguments to be forwarded to :py:method:`Task.__init__` (additional keyword-only arguments are also allowed, as long as they have default values).  The abstract base class does not use the ``butler`` argument, allowing it to be ``None``, and while concrete SuperTasks may or may not use it, they must accept it even if it is unused.  This allows the schemas associated with input dataset types and the configuration of preceeding SuperTasks to be loaded and used to complete construction of the SuperTask; a SuperTask should not assume any other datasets are available through the given ``Butler``.  SuperTasks that do use the ``butler`` argument should also provide an alternate way to provide the schemas and configuration (i.e. additional defaulted keyword arguments) to allow them to be constructed without a ``Butler`` when used as a regular ``Task``.  This also implies that when a :py:class:`Pipeline` constructs a sequence of SuperTasks, it must ensure the schemas and configuration are recorded at each step, not just at the end.
+        All concrete SuperTasks must have the :py:meth:`__init__` signature shown here, in which ``**kwargs`` contains only arguments to be forwarded to ``Task.__init__`` (additional keyword-only arguments are also allowed, as long as they have default values).  The abstract base class does not use the ``butler`` argument, allowing it to be ``None``, and while concrete SuperTasks may or may not use it, they must accept it even if it is unused.  This allows the schemas associated with input dataset types and the configuration of preceeding SuperTasks to be loaded and used to complete construction of the SuperTask; a SuperTask should not assume any other datasets are available through the given ``Butler``.  SuperTasks that do use the ``butler`` argument should also provide an alternate way to provide the schemas and configuration (i.e. additional defaulted keyword arguments) to allow them to be constructed without a ``Butler`` when used as a regular ``Task``.  This also implies that when a :py:class:`Pipeline` constructs a sequence of SuperTasks, it must ensure the schemas and configuration are recorded at each step, not just at the end.
 
     .. py:method:: run(self, *args, **kwargs)
 
-        This is the standard entry point for all Tasks, with the signature completely different for each concrete Task.  This should perform the bulk of the SuperTask's algorithmic work, operating on in-memory objects for both arguments and return values, and should not utilize a ``Butler`` or perform any I/O.  In rare cases, a SuperTask for which I/O is an integral component of the algorithm may lack a :py:meth:`run` method, or may have multiple methods to serve the same purpose.  As with other Tasks, the return value should be a :py:class:`lsst.pipe.base.Struct` combining named result objects.
+        This is the standard entry point for all Tasks, with the signature completely different for each concrete Task.  This should perform the bulk of the SuperTask's algorithmic work, operating on in-memory objects for both arguments and return values, and should not utilize a ``Butler`` or perform any I/O.  In rare cases, a SuperTask for which I/O is an integral component of the algorithm may lack a :py:meth:`run` method, or may have multiple methods to serve the same purpose.  As with other Tasks, the return value should be a ``lsst.pipe.base.Struct`` combining named result objects.
 
     .. py:method:: defineQuanta(self, repoGraph)
 
@@ -151,7 +151,7 @@ SuperTask Class Interface
 
     .. py:method:: runQuantum(self, quantum, butler)
 
-        This method runs the SuperTask on the given :py:class:`Quantum`, using a ``Butler`` for input and output.  For most concrete SuperTasks, this should simply use ``Butler.get`` to retrieve inputs, call :py:meth:`run`, and then use ``Butler.put`` to write outputs.
+        This method runs the SuperTask on the given :py:class:`Quantum`, using a ``Butler`` for input and output.  For most concrete SuperTasks, this should simply use ``Butler.get`` to retrieve inputs, call ``run``, and then use ``Butler.put`` to write outputs.
 
     .. py:method:: getDatasetClasses(self)
 
@@ -234,7 +234,7 @@ Relating and Specifying Data IDs
 The Problem
 -----------
 
-The procedure for creating an execution plan for a full :py:class:`Pipeline` reveals some clear limitations in the current ``Butler``/``CmdLineTask` ` approach to specifying and utilizing dictionary-based data IDs.
+The procedure for creating an execution plan for a full :py:class:`Pipeline` reveals some clear limitations in the current ``Butler``/``CmdLineTask`` approach to specifying and utilizing dictionary-based data IDs.
 
 As an example, let us consider a :py:class:`SuperTask` responsible for warping a visit-level image to the coordinate system defined by a sky patch prior to coaddition.  The quantum in this case is the set of visit-sensor images that overlap the sky patch, and it is quite conceivable that the user would want to specify or constrain (via wildcards) the outputs (the sky patches for which coadds should be produced), the inputs (the set of visits to combine), or both.
 
@@ -258,9 +258,9 @@ In the new system, the combination of a dictionary-style data ID and a dataset t
 
 .. py:class:: Dataset
 
-    A concrete subclass of the abstract base class :py:class:`Dataset` represents a Butler dataset type: a combination of a name, a storage format, path template, and a set of concrete :py:class:`Unit` subclass type objects that define the units of data that label an instance of the dataset.  If, for example, ``Coadd`` is a :py:class:`Dataset` subclass, the corresponding unit classes might be those for :py:class:`Tract`, :py:class:`Patch`, and :py:class:`Filter`.
+    A concrete subclass of the abstract base class :py:class:`Dataset` represents a Butler dataset type: a combination of a name, a storage format, path template, and a set of concrete :py:class:`Unit` subclass type objects that define the units of data that label an instance of the dataset.  If, for example, ``Coadd`` is a :py:class:`Dataset` subclass, the corresponding unit classes might be those for ``Tract``, ``Patch``, and ``Filter``.
 
-    An instance of a :py:class:`Dataset` subclass is thus a handle to a particular Butler dataset; it is the only required argument to ``Butler.get`` in the new system, and one of only two required arguments to :py:class:`Butler.put` (the other being the actual object to store).
+    An instance of a :py:class:`Dataset` subclass is thus a handle to a particular Butler dataset; it is the only required argument to ``Butler.get`` in the new system, and one of only two required arguments to ``Butler.put`` (the other being the actual object to store).
 
     :py:class:`Dataset` subclasses are typically created dynamically (usually via a :py:class:DatasetField` that is part of a :py:class:`SuperTask's <SuperTask>` config class).
 
@@ -286,11 +286,11 @@ In the new system, the combination of a dictionary-style data ID and a dataset t
 
     A particular :py:class:`Unit's <Unit>` existence is not tied to the presence of any actual data in a repository; it simply defines a dimension in which one or more :py:class:`Datasets <Dataset>` *may* exist.  In addition to fields that describe them (such as a visit number, sensor label, or patch coordinates), concrete :py:class:`Units <Unit>` also have attributes that link them to related :py:class:`Units <Unit>` (such as the set of visit-sensor combinations that overlap a sky patch, and vice versa)
 
-    .. py::attribute:: datasets
+    .. py:attribute:: datasets
 
         A dictionary containing all :py:class:`Dataset` instances that refer to this :py:class:`Unit` instance.  Keys are dataset type names, and values are sets of instances of that subclass.
 
-    .. py::attribute:: related
+    .. py:attribute:: related
 
         A dictionary containing all :py:class:`Unit` instances that are directly related to this instance.  Keys are unit type names, and values are sets fo instances of that subclass.
 
@@ -326,7 +326,7 @@ In the new system, the combination of a dictionary-style data ID and a dataset t
 
     :return: a :py:class:`RepoGraph`
 
-    Like other interfaces that interact with a data repository, this function may ultimately become part of a Butler API (with the :py:arg:`repository` argument removed, as the Butler would then be initialized with that repository).
+    Like other interfaces that interact with a data repository, this function may ultimately become part of a Butler API (with the ``repository`` argument removed, as the Butler would then be initialized with that repository).
 
 
 Connecting Python to SQL
@@ -489,7 +489,7 @@ LSST Science Platform
 
 In the notebook environment of the Science Platform, SuperTask will be executed in any of three ways:
 
- - directly in the Python kernel of the notebook, with no pre-flight (and probably just as regular Tasks via :py:meth:`Task.run` rather than :py:meth:`SuperTask.runQuantum`).;
+ - directly in the Python kernel of the notebook, with no pre-flight (and probably just as regular Tasks via ``Task.run`` rather than :py:meth:`SuperTask.runQuantum`).;
 
  - in the notebook container, using multiple processes in a manner very similar to (and probably implemented by :ref:`CmdLineFramework <command_line_implementation>`, though we will provide an interface for launching such jobs directly from the notebook);
 
