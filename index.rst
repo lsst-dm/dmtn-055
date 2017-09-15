@@ -1,4 +1,4 @@
-..
+    ..
   Technote content.
 
   See https://developer.lsst.io/docs/rst_styleguide.html
@@ -97,7 +97,7 @@ The design of the SuperTask Library is largely derived from the following two pr
 
  - Defining units of work that can be performed independently should be a responsibility of the same class (a concrete SuperTask, in this case) that does that work.  Putting this responsibility on the control software or the human user instead would result in a rigid system that is capable of running only a few predefined sequences of SuperTask without requiring significant changes.  While we will likely only need a few predefined sequences late in operations, we need more flexibility during development and early operations.
 
- - By requesting a list of these units of work from each SuperTask in an ordered list, the control software can discover all dependencies and construct a satisfactory execution plan, in advance, for the full sequence of SuperTasks.  This does not allow the definition of a particular SuperTask's units of work to depend on the actual outputs of an earlier SuperTask in the sequence (as opposed to depending on just the expected presence or absenct of outputs, which is supported).
+ - By requesting a list of these units of work from each SuperTask in an ordered list, the control software can discover all dependencies and construct a satisfactory execution plan, in advance, for the full sequence of SuperTasks.  This does not allow the definition of a particular SuperTask's units of work to depend on the actual outputs of an earlier SuperTask in the sequence (as opposed to depending on just the expected presence or absence of outputs, which is supported).
 
 We consider this limitation acceptable for two reasons.  First, we expect cases where the outputs themselves affect the dependencies to be rare, and hence it is an acceptable fallback to simply split the list of SuperTasks into subsets without these dependencies and run the subsets in sequence manually, because the number of such subsets will be small.  More importantly, we believe we can strictly but only slightly overestimate the dependencies between units of work in advance, in essentially all of these cases, and hence the only errors in the execution plan will be a small number of do-nothing jobs and/or unnecessary inputs staged to the local compute environment.  These can easily be handled by any practical workflow system.
 
@@ -252,9 +252,9 @@ The above problem is not a novel one: it is exactly the problem a relational dat
 
  - construct and execute a SELECT query that inner-joins the relevant data IDs and applies the user's data ID expressions.
 
-This represents a complete redesign of the system of managing metadata in a Data Repository.  It replaces the simple, raw-data-centric registry database and the APIs for interacting it with with a multi-table database that manages all datasets in a repository.  To represent the results of the queries against this database in Python, it also involves a replacing the dictionary-based data ID concept with a more object-oriented system that can hold relationship information.  These interfaces are more naturally a part of the Butler Library than the SuperTask Library, and we expect the design sketch described in this section evolve in the course of future Butler Library design work.  However, we do not expect this evolution to require significant changes to the rest of the SuperTask Library design.
+This represents a complete redesign of the system of managing metadata in a Data Repository.  It replaces the simple, raw-data-centric registry database and the APIs for interacting it with a multi-table database that manages all datasets in a repository.  To represent the results of the queries against this database in Python, it also involves a replacing the dictionary-based data ID concept with a more object-oriented system that can hold relationship information.  These interfaces are more naturally a part of the Butler Library than the SuperTask Library, and we expect the design sketch described in this section evolve in the course of future Butler Library design work.  However, we do not expect this evolution to require significant changes to the rest of the SuperTask Library design.
 
-In the new system, the combination of a dictionary-style data ID and a dataset type name becomes an instance of the :py:class:`Dataset` class.  A key-value pair in that dictionary becomes an instance of the :py:class:`Unit` class (for "unit of data"); a :py:class:`Dataset` instance is conceptually a tuple of :py:class:`Units <Unit>`.  A set of :py:class:`Units <Unit>` and py:class:`Datasets <Dataset>` naturally forms a graph-like data structure called a :py:class:`RepoGraph`, which represents (a subset of) a Data Repository.
+In the new system, the combination of a dictionary-style data ID and a dataset type name becomes an instance of the :py:class:`Dataset` class.  A key-value pair in that dictionary becomes an instance of the :py:class:`Unit` class (for "unit of data"); a :py:class:`Dataset` instance is conceptually a tuple of :py:class:`Units <Unit>`.  A set of :py:class:`Units <Unit>` and :py:class:`Datasets <Dataset>` naturally forms a graph-like data structure called a :py:class:`RepoGraph`, which represents (a subset of) a Data Repository.
 
 .. py:class:: Dataset
 
@@ -266,7 +266,7 @@ In the new system, the combination of a dictionary-style data ID and a dataset t
 
     .. py:staticmethod:: subclass(name, UnitClasses)
 
-        Define a new :py:class:`Dataset` subclass dyamically with the given name, with instances of the new class required to hold instances of exactly the given :py:class:`Unit` subclasses (via a named attribute for each :py:class:`Unit` subclass).
+        Define a new :py:class:`Dataset` subclass dynamically with the given name, with instances of the new class required to hold instances of exactly the given :py:class:`Unit` subclasses (via a named attribute for each :py:class:`Unit` subclass).
 
     .. py:attribute:: units
 
@@ -425,7 +425,7 @@ A more detailed description of :py:class:`QuantumGraphBuilder` is below.
 Quantum-Execution Environment
 =============================
 
-Unlike the pre-flight environment, the code that implementats the quantum execution environment in which :py:meth:`SuperTask.runQuantum` is called and actual algorithmic code is run is in general not shared between different implementations.
+Unlike the pre-flight environment, the code that implements the quantum execution environment in which :py:meth:`SuperTask.runQuantum` is called and actual algorithmic code is run is in general not shared between different implementations.
 
 A QuantumExecutionFramework can be as simple as a thin layer that provides a call to :py:meth:`SuperTask.runQuantum` with a Butler or as complex as a multi-level workflow system that involves staging data to local filesystems, strict provenance control, multiple batch submissions, and automatic retries.
 
